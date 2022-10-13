@@ -47,11 +47,13 @@ def main():
     init_b = np.ndarray(x_train.shape)
     init_b.fill(0)
     init_w = np.ndarray(x_train.shape)
-    init_w.fill(0)
+    init_w.fill(np.random.normal())
     learning_rate = 0.2
     new_w, new_b = linear_regression(init_w, init_b, x_train, y_train, learning_rate)
+    print('weights:',new_w[0][0])
+    print('intercepts:',new_b[0][0])
     y_pred = your_model(x_test, new_w, new_b)
-    print(Mean_square_error(y_test, y_pred, new_w, new_b))
+    print('Mean_square_error:',Mean_square_error(y_test, y_pred, new_w, new_b))
     plt.show()
 if __name__ == '__main__':
     main()
