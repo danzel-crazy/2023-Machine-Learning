@@ -13,7 +13,8 @@ def Mean_square_error(test, pred, w, b):
     error = 0
     for i in range(len(test)):
         error += (test[i] - pred[i][0]) ** 2
-    return error/len(test)
+    error = error/len(test)
+    return error/2
 
 def linear_regression(w, b, x, y, theta):
     error = 0
@@ -29,8 +30,6 @@ def linear_regression(w, b, x, y, theta):
         for i in range(n):
             gradient_b += -(2/n) * (y[i] - ((new_w[i][0] * x[i][0]) + new_b[i][0]))
             gradient_w += -(2/n) * x[i][0] * (y[i] - ((new_w[i][0] * x[i][0]) + new_b[i][0]))
-        
-
             
         for i in range(n):
             new_w[i][0] -= theta * gradient_w
