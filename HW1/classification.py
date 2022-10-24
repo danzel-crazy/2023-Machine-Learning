@@ -50,7 +50,7 @@ def main():
     init_b.fill(0)
     init_w = np.ndarray(x_train.shape)
     init_w.fill(np.random.normal())
-    learning_rate = 0.02
+    learning_rate = 0.01
     new_w, new_b = logistic_regression(init_w, init_b, x_train, y_train, learning_rate)
     print('weights:',new_w[0][0])
     print('intercepts:',new_b[0][0])
