@@ -121,18 +121,18 @@ class fisher:
                 plt.plot([proj[idx][0], self.x[idx][0]], [proj[idx][1], self.x[idx][1]], 'b', alpha=.3)
 
         #link test data with its projectd data
-        proj_t = []
-        for i in self.proj_t :
-            proj_t.append(i * self.w)
-        for idx, i in enumerate(self.y_t):
-            if i == 0 :
-                plt.plot([proj_t[idx][0], self.x_t[idx][0]], [proj_t[idx][1], self.x_t[idx][1]], 'r', alpha=.3)
-            else :
-                plt.plot([proj_t[idx][0], self.x_t[idx][0]], [proj_t[idx][1], self.x_t[idx][1]], 'b', alpha=.3)
+        # proj_t = []
+        # for i in self.proj_t :
+        #     proj_t.append(i * self.w)
+        # for idx, i in enumerate(self.y_t):
+        #     if i == 0 :
+        #         plt.plot([proj_t[idx][0], self.x_t[idx][0]], [proj_t[idx][1], self.x_t[idx][1]], 'r', alpha=.3)
+        #     else :
+        #         plt.plot([proj_t[idx][0], self.x_t[idx][0]], [proj_t[idx][1], self.x_t[idx][1]], 'b', alpha=.3)
 
         #plot train data and test data and the graph
         plt.scatter(self.x[:, 0], self.x[:, 1], color=[colors[i] for i in self.y], s = 10)
-        plt.scatter(self.x_t[:, 0], self.x_t[:, 1], color=[colors[i] for i in self.y_t], s = 10)
+        # plt.scatter(self.x_t[:, 0], self.x_t[:, 1], color=[colors[i] for i in self.y_t], s = 10)
         plt.title(f"Projection Line: w= {self.w[1]/self.w[0]}, b=0")
         plt.xlabel("$x_1$")
         plt.ylabel("$x_2$")
