@@ -28,7 +28,7 @@ def compute_alpha(error):
     return np.log((1 - error) / error) / 2
 
 def update_weights(w_i, alpha, y, y_pred):
-    # print(np.not_equal(y, y_pred))
+    
     return w_i * np.exp(alpha * (np.not_equal(y, y_pred)).astype(int))
 
 def gini_weight(sequence, col, w):
@@ -61,7 +61,7 @@ def entropy(sequence):
     if c1 == 0 or c2 == 0: 
         entro = 0
     else :
-        entro = - ((c1/len(sequence)) * math.log2(c1/len(sequence)) + (c2/len(sequence)) * math.log2(c2/len(sequence)))
+        entro = - ((c1/len(sequence)) * math.log(c1/len(sequence), 2) + (c2/len(sequence)) * math.log(c2/len(sequence), 2))
     return entro
 
 def partition(col, rows, cl, question):
@@ -156,7 +156,7 @@ class DecisionTree():
                     if self.ada == False :
                         gain = ((len(true_branch)/len(y_data)) * gini(true_branch) + (len(false_branch)/len(y_data)) *gini(false_branch))
                     else :
-                        gain = (sum(true_w)/sum(self.sample_weight)) * gini_weight(true_branch, true_col, self.sample_weight) + (sum(false_w)/sum(self.sample_weight)) *gini_weight(false_branch, false_col, self.sample_weight)
+                        gain = ((len(true_branch)/len(y_data)) * gini(true_branch) + (len(false_branch)/len(y_data)) *gini(false_branch))
                 elif self.criterion == 'entropy' :
                     gain = (entropy(true_branch) + entropy(false_branch))
             
@@ -206,20 +206,17 @@ class DecisionTree():
                         if self.ada == False :
                             gain = ((len(true_branch)/len(y_data)) * gini(true_branch) + (len(false_branch)/len(y_data)) *gini(false_branch))
                         else :
-                            gain = (sum(true_w)/sum(self.sample_weight)) * gini_weight(true_branch, true_col, self.sample_weight) + (sum(false_w)/sum(self.sample_weight)) *gini_weight(false_branch, false_col, self.sample_weight)
+                            gain = ((len(true_branch)/len(y_data)) * gini(true_branch) + (len(false_branch)/len(y_data)) *gini(false_branch))
                     elif self.criterion == 'entropy' :
                         gain = (entropy(true_branch) + entropy(false_branch))
                 
-                    if best_gain == None or gain <= best_gain:
+                    if best_gain == None or gain < best_gain:
                         bestCol = col
                         best_gain, best_question = gain, question
         # if best_gain == None :
         #     return None, None, None, None, None, None
 
         self.features.append(bestCol)
-        # best_val = []
-        # for i in x_data : 
-        #     best_val.append(i[bestCol])
         best_val = [i[bestCol] for i in x_data]
 
         x_true, x_false = x_data[best_val >= best_question, :], x_data[best_val < best_question, :]
@@ -229,12 +226,6 @@ class DecisionTree():
 
     def build_tree(self, x_data, y_data, node):
         if node.depth == self.max_depth : 
-            # if self.ada == True :
-            #     if class_counts(y_data) == 0:
-            #         node.cl = -1
-            #     else :
-            #         node.cl = class_counts(y_data)
-            # else : node.cl = class_counts(y_data)
             node.cl = class_counts(y_data)
             return
 
@@ -298,22 +289,25 @@ class AdaBoost():
         self.clf = []   
         
     def fit(self, x_data, y_data):
-        # y_data = relabel(y_data)
-        
+        # y_data = relabel(y_data)    
+        y_data = y_data * 2 - 1
         for m in tqdm(range(0, self.n_estimators)):
             # print(m)
             if m == 0:
                 w_i = np.ones(len(y_data)) * 1 / len(y_data)
+                print(w_i.shape)
+                new_x = x_data
             else:
                 w_i = update_weights(w_i, alpha, y_data, y_pred)
                 w_i = w_i/sum(w_i)
-            
-            print(w_i)
-            
+                # print(w_i.shape)
+                idx = np.random.choice(len(x_data), len(x_data), replace = True, p = w_i)
+                new_x = x_data[idx]
+
             clf_depth3 = DecisionTree(criterion='gini', max_depth=1)
-            clf_depth3.fit(x_data, y_data, ada = True , sample_weight = w_i)
+            clf_depth3.fit(new_x, y_data, ada = True , sample_weight = w_i)
             y_pred = clf_depth3.predict(x_data)
-            
+            y_pred = y_pred * 2 -1
             self.clf.append(clf_depth3)
 
             error = compute_error(y_data, y_pred, w_i)
@@ -321,13 +315,29 @@ class AdaBoost():
             alpha = compute_alpha(error)
             self.alphas.append(alpha)
 
+    def result(self, pred) :
+        # print(pred)
+        y_pred = []
+        for i in pred : 
+            if i >= 0 :
+                y_pred.append(1)
+            else :
+                y_pred.append(0)
+
+        return np.asarray(y_pred)
+    
     def predict(self, x_data):
-        preds = pd.DataFrame(index = range(len(x_data)), columns = range(self.n_estimators)) 
+        # preds = pd.DataFrame(index = range(len(x_data)), columns = range(self.n_estimators)) 
+        
+        preds = np.zeros(len(x_data))
 
         for m in range(self.n_estimators):
-            y_pred_m = self.clf[m].predict(x_data) * self.alphas[m]
-            preds[preds.columns[m]] = y_pred_m
-        y_pred = (1 * np.sign(preds.T.sum())).astype(int)
+            y_pred_m = self.clf[m].predict(x_data) * 2 -1
+            y_pred_m = y_pred_m * self.alphas[m]
+            preds += y_pred_m
+            # print(y_pred_m)
+        
+        y_pred = self.result(preds)
         return y_pred
 
 class RandomForest():
@@ -380,8 +390,8 @@ if __name__ == '__main__':
     # print(len(x_train))
 
     #Question 2-1
-    clf_depth3 = DecisionTree(criterion='gini', max_depth=3)
-    clf_depth10 = DecisionTree(criterion='gini', max_depth=10)
+    # clf_depth3 = DecisionTree(criterion='gini', max_depth=3)
+    # clf_depth10 = DecisionTree(criterion='gini', max_depth=10)
 
     # clf_depth3.fit(x_train, y_train)
     # y_pred = clf_depth3.predict(x_test)
@@ -407,7 +417,6 @@ if __name__ == '__main__':
     # clf_entropy.fit(x_train, y_train)
     # y_pred = clf_entropy.predict(x_test)
     # print('Test-set accuarcy score: ', accuracy_score(y_test, y_pred))
-    # print(clf_entropy.features)
 
     # #Question 3
     # features = {}
@@ -424,19 +433,19 @@ if __name__ == '__main__':
     # plt.title('Feature Importance')
     # plt.show()
 
-    #Question 4
-    # ada10 = AdaBoost(n_estimators=10)
-    # ada100 = AdaBoost(n_estimators=100)
+    # #Question 4
+    ada10 = AdaBoost(n_estimators=10)
+    ada100 = AdaBoost(n_estimators=100)
 
-    # ada10.fit(x_train, y_train)
-    # y_pred = ada10.predict(x_test)
-    # print('Test-set accuarcy score: ', accuracy_score(y_test, y_pred))
+    ada10.fit(x_train, y_train)
+    y_pred = ada10.predict(x_test)
+    print('Test-set accuarcy score: ', accuracy_score(y_test, y_pred))
 
     # ada100.fit(x_train, y_train)
     # y_pred = ada100.predict(x_test)
     # print('Test-set accuarcy score: ', accuracy_score(y_test, y_pred))
 
-    #Question 5-1
+    # #Question 5-1
     # clf_10tree = RandomForest(n_estimators=10, max_features=np.sqrt(x_train.shape[1]))
     # clf_100tree = RandomForest(n_estimators=100, max_features=np.sqrt(x_train.shape[1]))
     
@@ -448,20 +457,144 @@ if __name__ == '__main__':
     # y_pred = clf_100tree.predict(x_test)
     # print('Test-set accuarcy score: ', accuracy_score(y_test, y_pred))
 
-    #Question 5-2
-    clf_random_features = RandomForest(n_estimators=10, max_features=np.sqrt(x_train.shape[1]))
-    clf_all_features = RandomForest(n_estimators=10, max_features=x_train.shape[1])
+    # #Question 5-2
+    # clf_random_features = RandomForest(n_estimators=10, max_features=np.sqrt(x_train.shape[1]))
+    # clf_all_features = RandomForest(n_estimators=10, max_features=x_train.shape[1])
 
-    clf_random_features.fit(x_train, y_train)
-    y_pred = clf_random_features.predict(x_test)
-    print('Test-set accuarcy score: ', accuracy_score(y_test, y_pred))
+    # clf_random_features.fit(x_train, y_train)
+    # y_pred = clf_random_features.predict(x_test)
+    # print('Test-set accuarcy score: ', accuracy_score(y_test, y_pred))
 
-    clf_all_features.fit(x_train, y_train)
-    y_pred = clf_all_features.predict(x_test)
-    print('Test-set accuarcy score: ', accuracy_score(y_test, y_pred))
+    # clf_all_features.fit(x_train, y_train)
+    # y_pred = clf_all_features.predict(x_test)
+    # print('Test-set accuarcy score: ', accuracy_score(y_test, y_pred))
 
-    #Question 6
+    # #Question 6
     # my_model = train_your_model(train_df)
     # y_pred = my_model.predict(x_test)
     # print('Test-set accuarcy score: ', accuracy_score(y_test, y_pred))
     # assert y_pred.shape == (500, )
+
+    # def discrete_checker(score, thres, clf, name, x_train, y_train, x_test, y_test):
+    #     clf.fit(x_train, y_train)
+    #     y_pred = clf.predict(x_test)
+    #     if accuracy_score(y_test, y_pred) - thres >= 0:
+    #         return score
+    #     else:
+    #         print(f"{name} failed")
+    #         return 0
+
+
+    # def patient_checker(score, thres, CLS, kwargs, name,
+    #                     x_train, y_train, x_test, y_test, patient=10):
+    #     while patient > 0:
+    #         patient -= 1
+    #         clf = CLS(**kwargs)
+    #         clf.fit(x_train, y_train)
+    #         y_pred = clf.predict(x_test)
+    #         if accuracy_score(y_test, y_pred) - thres >= 0:
+    #             return score
+    #     print(f"{name} failed")
+    #     print("Considering the randomness, we will check it manually")
+    #     return 0
+
+
+    # def load_dataset():
+    #     file_url = "http://storage.googleapis.com/download.tensorflow.org/data/abalone_train.csv"
+    #     df = pd.read_csv(
+    #         file_url,
+    #         names=["Length", "Diameter", "Height", "Whole weight", "Shucked weight",
+    #             "Viscera weight", "Shell weight", "Age"]
+    #     )
+
+    #     df['Target'] = (df["Age"] > 15).astype(int)
+    #     df = df.drop(labels=["Age"], axis="columns")
+
+    #     train_idx = range(0, len(df), 10)
+    #     test_idx = range(1, len(df), 20)
+
+    #     train_df = df.iloc[train_idx]
+    #     test_df = df.iloc[test_idx]
+
+    #     x_train = train_df.drop(labels=["Target"], axis="columns")
+    #     feature_names = x_train.columns.values
+    #     x_train = x_train.values
+    #     y_train = train_df['Target'].values
+
+    #     x_test = test_df.drop(labels=["Target"], axis="columns")
+    #     x_test = x_test.values
+    #     y_test = test_df['Target'].values
+    #     return x_train, y_train, x_test, y_test, feature_names
+
+
+    # score = 0
+
+    # data = np.array([1, 2])
+    # if abs(gini(data) - 0.5) < 1e-4:
+    #     score += 2.5
+    # else:
+    #     print("gini test failed")
+
+    # if abs(entropy(data) - 1) < 1e-4:
+    #     score += 2.5
+    # else:
+    #     print("entropy test failed")
+
+    # x_train, y_train, x_test, y_test, feature_names = load_dataset()
+
+    # score += discrete_checker(5, 0.9337,
+    #                         DecisionTree(criterion='gini', max_depth=3),
+    #                         "DecisionTree(criterion='gini', max_depth=3)",
+    #                         x_train, y_train, x_test, y_test
+    #                         )
+
+    # score += discrete_checker(2.5, 0.9036,
+    #                         DecisionTree(criterion='gini', max_depth=10),
+    #                         "DecisionTree(criterion='gini', max_depth=10)",
+    #                         x_train, y_train, x_test, y_test
+    #                         )
+
+    # score += discrete_checker(2.5, 0.9096,
+    #                         DecisionTree(criterion='entropy', max_depth=3),
+    #                         "DecisionTree(criterion='entropy', max_depth=3)",
+    #                         x_train, y_train, x_test, y_test
+    #                         )
+
+    # print("*** We will check your result for Question 3 manually *** (5 points)")
+
+    # score += patient_checker(
+    #     7.5, 0.91, AdaBoost, {"n_estimators": 10},
+    #     "AdaBoost(n_estimators=10)",
+    #     x_train, y_train, x_test, y_test
+    # )
+
+    # score += patient_checker(
+    #     7.5, 0.87, AdaBoost, {"n_estimators": 100},
+    #     "AdaBoost(n_estimators=100)",
+    #     x_train, y_train, x_test, y_test
+    # )
+
+    # score += patient_checker(
+    #     5, 0.91, RandomForest,
+    #     {"n_estimators": 10, "max_features": np.sqrt(x_train.shape[1])},
+    #     "RandomForest(n_estimators=10, max_features=sqrt(n_features))",
+    #     x_train, y_train, x_test, y_test
+    # )
+
+    # score += patient_checker(
+    #     5, 0.91, RandomForest,
+    #     {"n_estimators": 100, "max_features": np.sqrt(x_train.shape[1])},
+    #     "RandomForest(n_estimators=100, max_features=sqrt(n_features))",
+    #     x_train, y_train, x_test, y_test
+    # )
+
+    # score += patient_checker(
+    #     5, 0.92, RandomForest,
+    #     {"n_estimators": 10, "max_features": x_train.shape[1]},
+    #     "RandomForest(n_estimators=10, max_features=n_features)",
+    #     x_train, y_train, x_test, y_test
+    # )
+
+    # print("*** We will check your result for Question 6 manually *** (20 points)")
+    # print("Approximate score range:", score, "~", score + 25)
+    # print("*** This score is only for reference ***")
